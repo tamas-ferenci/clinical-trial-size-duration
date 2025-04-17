@@ -111,6 +111,15 @@ RawData$Masking <- temp$V6
 RawData$PrimaryPurpose <- temp$V8
 ```
 
+It might be useful to introduce a less detailed masking information variable:
+
+```{r}
+RawData$MaskingSimple <- ifelse(RawData$Masking == "", NA,
+                                trimws(sapply(strsplit(
+                                  RawData$Masking, "(",
+                                  fixed = TRUE), `[`, 1)))
+```
+
 Whether the trial was controlled with placebo (as opposed to active control) can be likely detected from the `Interventions` field by checking whether it includes the term placebo:
 
 ```{r}
@@ -180,7 +189,7 @@ Now we can have a look at the few largest trials:
 ```{r}
 knitr::kable(head(RawData[is.na(ManualExclusion)][
   order(Enrollment, decreasing = TRUE),
-  .(NCT.Number, Study.URL, Phases, Masking, Placebo, Age,
+  .(NCT.Number, Study.URL, Phases, MaskingSimple, Placebo, Age,
     Enrollment)], 10))
 ```
 
@@ -189,7 +198,7 @@ Restring ourselves only to place-controlled, blinded RCTs:
 ```{r}
 knitr::kable(head(RawData2[
   order(Enrollment, decreasing = TRUE),
-  .(NCT.Number, Study.URL, Phases, Masking, Placebo, Age,
+  .(NCT.Number, Study.URL, Phases, MaskingSimple, Placebo, Age,
     Enrollment)], 10))
 ```
 
@@ -198,7 +207,7 @@ And those that involved only children:
 ```{r}
 knitr::kable(head(RawData2[Age == "CHILD"][
   order(Enrollment, decreasing = TRUE),
-  .(NCT.Number, Study.URL, Phases, Masking, Placebo, Age,
+  .(NCT.Number, Study.URL, Phases, MaskingSimple, Placebo, Age,
     Enrollment)], 10))
 ```
 

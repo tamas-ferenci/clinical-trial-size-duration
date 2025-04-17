@@ -199,6 +199,16 @@ RawData$Masking <- temp$V6
 RawData$PrimaryPurpose <- temp$V8
 ```
 
+It might be useful to introduce a less detailed masking information
+variable:
+
+``` r
+RawData$MaskingSimple <- ifelse(RawData$Masking == "", NA,
+                                trimws(sapply(strsplit(
+                                  RawData$Masking, "(",
+                                  fixed = TRUE), `[`, 1)))
+```
+
 Whether the trial was controlled with placebo (as opposed to active
 control) can be likely detected from the `Interventions` field by
 checking whether it includes the term placebo:
@@ -232,7 +242,7 @@ ggplot(RawData[Enrollment > 0], aes(x = Enrollment)) +
   labs(y = "Count")
 ```
 
-<img src="README_files/figure-gfm/unnamed-chunk-9-1.png" width="100%" />
+<img src="README_files/figure-gfm/unnamed-chunk-10-1.png" width="100%" />
 
 A few noteworthy quantiles:
 
@@ -295,73 +305,73 @@ ggplot(RawData[Enrollment > 0], aes(x = Enrollment)) +
   labs(y = "Count")
 ```
 
-<img src="README_files/figure-gfm/unnamed-chunk-12-1.png" width="100%" />
+<img src="README_files/figure-gfm/unnamed-chunk-13-1.png" width="100%" />
 
 Now we can have a look at the few largest trials:
 
 ``` r
 knitr::kable(head(RawData[is.na(ManualExclusion)][
   order(Enrollment, decreasing = TRUE),
-  .(NCT.Number, Study.URL, Phases, Masking, Placebo, Age,
+  .(NCT.Number, Study.URL, Phases, MaskingSimple, Placebo, Age,
     Enrollment)], 10))
 ```
 
-| NCT.Number | Study.URL | Phases | Masking | Placebo | Age | Enrollment |
+| NCT.Number | Study.URL | Phases | MaskingSimple | Placebo | Age | Enrollment |
 |:---|:---|:---|:---|:---|:---|---:|
-| NCT02079701 | <https://clinicaltrials.gov/study/NCT02079701> | PHASE4 | TRIPLE (PARTICIPANT, CARE_PROVIDER, INVESTIGATOR) | TRUE | CHILD, ADULT, OLDER_ADULT | 152723 |
-| NCT01014845 | <https://clinicaltrials.gov/study/NCT01014845> | PHASE3 | QUADRUPLE (PARTICIPANT, CARE_PROVIDER, INVESTIGATOR, OUTCOMES_ASSESSOR) | FALSE | CHILD, ADULT, OLDER_ADULT | 112604 |
-| NCT00744263 | <https://clinicaltrials.gov/study/NCT00744263> | PHASE4 | QUADRUPLE (PARTICIPANT, CARE_PROVIDER, INVESTIGATOR, OUTCOMES_ASSESSOR) | TRUE | OLDER_ADULT | 84496 |
-| NCT00090233 | <https://clinicaltrials.gov/study/NCT00090233> | PHASE3 | DOUBLE (PARTICIPANT, INVESTIGATOR) | TRUE | CHILD | 69274 |
-| NCT00140673 | <https://clinicaltrials.gov/study/NCT00140673> | PHASE3 | QUADRUPLE (PARTICIPANT, CARE_PROVIDER, INVESTIGATOR, OUTCOMES_ASSESSOR) | FALSE | CHILD | 63227 |
-| NCT03871491 | <https://clinicaltrials.gov/study/NCT03871491> | PHASE3 | TRIPLE (PARTICIPANT, CARE_PROVIDER, INVESTIGATOR) | TRUE | ADULT | 58747 |
-| NCT03490123 | <https://clinicaltrials.gov/study/NCT03490123> | PHASE4 | SINGLE (OUTCOMES_ASSESSOR) | FALSE | CHILD, ADULT, OLDER_ADULT | 56000 |
+| NCT02079701 | <https://clinicaltrials.gov/study/NCT02079701> | PHASE4 | TRIPLE | TRUE | CHILD, ADULT, OLDER_ADULT | 152723 |
+| NCT01014845 | <https://clinicaltrials.gov/study/NCT01014845> | PHASE3 | QUADRUPLE | FALSE | CHILD, ADULT, OLDER_ADULT | 112604 |
+| NCT00744263 | <https://clinicaltrials.gov/study/NCT00744263> | PHASE4 | QUADRUPLE | TRUE | OLDER_ADULT | 84496 |
+| NCT00090233 | <https://clinicaltrials.gov/study/NCT00090233> | PHASE3 | DOUBLE | TRUE | CHILD | 69274 |
+| NCT00140673 | <https://clinicaltrials.gov/study/NCT00140673> | PHASE3 | QUADRUPLE | FALSE | CHILD | 63227 |
+| NCT03871491 | <https://clinicaltrials.gov/study/NCT03871491> | PHASE3 | TRIPLE | TRUE | ADULT | 58747 |
+| NCT03490123 | <https://clinicaltrials.gov/study/NCT03490123> | PHASE4 | SINGLE | FALSE | CHILD, ADULT, OLDER_ADULT | 56000 |
 | NCT04966702 | <https://clinicaltrials.gov/study/NCT04966702> | PHASE3 | NONE | FALSE | CHILD, ADULT, OLDER_ADULT | 48145 |
-| NCT04368728 | <https://clinicaltrials.gov/study/NCT04368728> | PHASE2\|PHASE3 | TRIPLE (PARTICIPANT, CARE_PROVIDER, INVESTIGATOR) | TRUE | CHILD, ADULT, OLDER_ADULT | 47079 |
-| NCT05540522 | <https://clinicaltrials.gov/study/NCT05540522> | PHASE3 | QUADRUPLE (PARTICIPANT, CARE_PROVIDER, INVESTIGATOR, OUTCOMES_ASSESSOR) | FALSE | ADULT, OLDER_ADULT | 46169 |
+| NCT04368728 | <https://clinicaltrials.gov/study/NCT04368728> | PHASE2\|PHASE3 | TRIPLE | TRUE | CHILD, ADULT, OLDER_ADULT | 47079 |
+| NCT05540522 | <https://clinicaltrials.gov/study/NCT05540522> | PHASE3 | QUADRUPLE | FALSE | ADULT, OLDER_ADULT | 46169 |
 
 Restring ourselves only to place-controlled, blinded RCTs:
 
 ``` r
 knitr::kable(head(RawData2[
   order(Enrollment, decreasing = TRUE),
-  .(NCT.Number, Study.URL, Phases, Masking, Placebo, Age,
+  .(NCT.Number, Study.URL, Phases, MaskingSimple, Placebo, Age,
     Enrollment)], 10))
 ```
 
-| NCT.Number | Study.URL | Phases | Masking | Placebo | Age | Enrollment |
+| NCT.Number | Study.URL | Phases | MaskingSimple | Placebo | Age | Enrollment |
 |:---|:---|:---|:---|:---|:---|---:|
-| NCT02079701 | <https://clinicaltrials.gov/study/NCT02079701> | PHASE4 | TRIPLE (PARTICIPANT, CARE_PROVIDER, INVESTIGATOR) | TRUE | CHILD, ADULT, OLDER_ADULT | 152723 |
-| NCT00744263 | <https://clinicaltrials.gov/study/NCT00744263> | PHASE4 | QUADRUPLE (PARTICIPANT, CARE_PROVIDER, INVESTIGATOR, OUTCOMES_ASSESSOR) | TRUE | OLDER_ADULT | 84496 |
-| NCT00090233 | <https://clinicaltrials.gov/study/NCT00090233> | PHASE3 | DOUBLE (PARTICIPANT, INVESTIGATOR) | TRUE | CHILD | 69274 |
-| NCT03871491 | <https://clinicaltrials.gov/study/NCT03871491> | PHASE3 | TRIPLE (PARTICIPANT, CARE_PROVIDER, INVESTIGATOR) | TRUE | ADULT | 58747 |
-| NCT04368728 | <https://clinicaltrials.gov/study/NCT04368728> | PHASE2\|PHASE3 | TRIPLE (PARTICIPANT, CARE_PROVIDER, INVESTIGATOR) | TRUE | CHILD, ADULT, OLDER_ADULT | 47079 |
-| NCT04505722 | <https://clinicaltrials.gov/study/NCT04505722> | PHASE3 | QUADRUPLE (PARTICIPANT, CARE_PROVIDER, INVESTIGATOR, OUTCOMES_ASSESSOR) | TRUE | ADULT, OLDER_ADULT | 44325 |
-| NCT04526990 | <https://clinicaltrials.gov/study/NCT04526990> | PHASE3 | QUADRUPLE (PARTICIPANT, CARE_PROVIDER, INVESTIGATOR, OUTCOMES_ASSESSOR) | TRUE | ADULT, OLDER_ADULT | 44247 |
-| NCT04510207 | <https://clinicaltrials.gov/study/NCT04510207> | PHASE3 | QUADRUPLE (PARTICIPANT, CARE_PROVIDER, INVESTIGATOR, OUTCOMES_ASSESSOR) | TRUE | ADULT, OLDER_ADULT | 44101 |
-| NCT00000479 | <https://clinicaltrials.gov/study/NCT00000479> | PHASE3 | TRIPLE (PARTICIPANT, INVESTIGATOR, OUTCOMES_ASSESSOR) | TRUE | ADULT, OLDER_ADULT | 39876 |
-| NCT04652102 | <https://clinicaltrials.gov/study/NCT04652102> | PHASE2\|PHASE3 | DOUBLE (PARTICIPANT, INVESTIGATOR) | TRUE | ADULT, OLDER_ADULT | 39680 |
+| NCT02079701 | <https://clinicaltrials.gov/study/NCT02079701> | PHASE4 | TRIPLE | TRUE | CHILD, ADULT, OLDER_ADULT | 152723 |
+| NCT00744263 | <https://clinicaltrials.gov/study/NCT00744263> | PHASE4 | QUADRUPLE | TRUE | OLDER_ADULT | 84496 |
+| NCT00090233 | <https://clinicaltrials.gov/study/NCT00090233> | PHASE3 | DOUBLE | TRUE | CHILD | 69274 |
+| NCT03871491 | <https://clinicaltrials.gov/study/NCT03871491> | PHASE3 | TRIPLE | TRUE | ADULT | 58747 |
+| NCT04368728 | <https://clinicaltrials.gov/study/NCT04368728> | PHASE2\|PHASE3 | TRIPLE | TRUE | CHILD, ADULT, OLDER_ADULT | 47079 |
+| NCT04505722 | <https://clinicaltrials.gov/study/NCT04505722> | PHASE3 | QUADRUPLE | TRUE | ADULT, OLDER_ADULT | 44325 |
+| NCT04526990 | <https://clinicaltrials.gov/study/NCT04526990> | PHASE3 | QUADRUPLE | TRUE | ADULT, OLDER_ADULT | 44247 |
+| NCT04510207 | <https://clinicaltrials.gov/study/NCT04510207> | PHASE3 | QUADRUPLE | TRUE | ADULT, OLDER_ADULT | 44101 |
+| NCT00000479 | <https://clinicaltrials.gov/study/NCT00000479> | PHASE3 | TRIPLE | TRUE | ADULT, OLDER_ADULT | 39876 |
+| NCT04652102 | <https://clinicaltrials.gov/study/NCT04652102> | PHASE2\|PHASE3 | DOUBLE | TRUE | ADULT, OLDER_ADULT | 39680 |
 
 And those that involved only children:
 
 ``` r
 knitr::kable(head(RawData2[Age == "CHILD"][
   order(Enrollment, decreasing = TRUE),
-  .(NCT.Number, Study.URL, Phases, Masking, Placebo, Age,
+  .(NCT.Number, Study.URL, Phases, MaskingSimple, Placebo, Age,
     Enrollment)], 10))
 ```
 
-| NCT.Number | Study.URL | Phases | Masking | Placebo | Age | Enrollment |
+| NCT.Number | Study.URL | Phases | MaskingSimple | Placebo | Age | Enrollment |
 |:---|:---|:---|:---|:---|:---|---:|
-| NCT00090233 | <https://clinicaltrials.gov/study/NCT00090233> | PHASE3 | DOUBLE (PARTICIPANT, INVESTIGATOR) | TRUE | CHILD | 69274 |
-| NCT02211729 | <https://clinicaltrials.gov/study/NCT02211729> | PHASE3 | QUADRUPLE (PARTICIPANT, CARE_PROVIDER, INVESTIGATOR, OUTCOMES_ASSESSOR) | TRUE | CHILD | 22090 |
-| NCT03682653 | <https://clinicaltrials.gov/study/NCT03682653> | PHASE4 | QUADRUPLE (PARTICIPANT, CARE_PROVIDER, INVESTIGATOR, OUTCOMES_ASSESSOR) | TRUE | CHILD | 21832 |
-| NCT01374516 | <https://clinicaltrials.gov/study/NCT01374516> | PHASE3 | QUADRUPLE (PARTICIPANT, CARE_PROVIDER, INVESTIGATOR, OUTCOMES_ASSESSOR) | TRUE | CHILD | 20869 |
-| NCT04796896 | <https://clinicaltrials.gov/study/NCT04796896> | PHASE2\|PHASE3 | QUADRUPLE (PARTICIPANT, CARE_PROVIDER, INVESTIGATOR, OUTCOMES_ASSESSOR) | TRUE | CHILD | 11950 |
-| NCT01373281 | <https://clinicaltrials.gov/study/NCT01373281> | PHASE3 | QUADRUPLE (PARTICIPANT, CARE_PROVIDER, INVESTIGATOR, OUTCOMES_ASSESSOR) | TRUE | CHILD | 10275 |
-| NCT01508247 | <https://clinicaltrials.gov/study/NCT01508247> | PHASE3 | TRIPLE (PARTICIPANT, CARE_PROVIDER, INVESTIGATOR) | TRUE | CHILD | 10245 |
-| NCT01507857 | <https://clinicaltrials.gov/study/NCT01507857> | PHASE3 | DOUBLE (PARTICIPANT, INVESTIGATOR) | TRUE | CHILD | 10077 |
-| NCT02964065 | <https://clinicaltrials.gov/study/NCT02964065> | PHASE3 | TRIPLE (PARTICIPANT, INVESTIGATOR, OUTCOMES_ASSESSOR) | TRUE | CHILD | 9000 |
-| NCT00329745 | <https://clinicaltrials.gov/study/NCT00329745> | PHASE3 | TRIPLE (PARTICIPANT, CARE_PROVIDER, INVESTIGATOR) | TRUE | CHILD | 8687 |
+| NCT00090233 | <https://clinicaltrials.gov/study/NCT00090233> | PHASE3 | DOUBLE | TRUE | CHILD | 69274 |
+| NCT02211729 | <https://clinicaltrials.gov/study/NCT02211729> | PHASE3 | QUADRUPLE | TRUE | CHILD | 22090 |
+| NCT03682653 | <https://clinicaltrials.gov/study/NCT03682653> | PHASE4 | QUADRUPLE | TRUE | CHILD | 21832 |
+| NCT01374516 | <https://clinicaltrials.gov/study/NCT01374516> | PHASE3 | QUADRUPLE | TRUE | CHILD | 20869 |
+| NCT04796896 | <https://clinicaltrials.gov/study/NCT04796896> | PHASE2\|PHASE3 | QUADRUPLE | TRUE | CHILD | 11950 |
+| NCT01373281 | <https://clinicaltrials.gov/study/NCT01373281> | PHASE3 | QUADRUPLE | TRUE | CHILD | 10275 |
+| NCT01508247 | <https://clinicaltrials.gov/study/NCT01508247> | PHASE3 | TRIPLE | TRUE | CHILD | 10245 |
+| NCT01507857 | <https://clinicaltrials.gov/study/NCT01507857> | PHASE3 | DOUBLE | TRUE | CHILD | 10077 |
+| NCT02964065 | <https://clinicaltrials.gov/study/NCT02964065> | PHASE3 | TRIPLE | TRUE | CHILD | 9000 |
+| NCT00329745 | <https://clinicaltrials.gov/study/NCT00329745> | PHASE3 | TRIPLE | TRUE | CHILD | 8687 |
 
 ## Further development possibilities
 
