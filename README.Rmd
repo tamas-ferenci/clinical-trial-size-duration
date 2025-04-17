@@ -130,8 +130,8 @@ RawData2 <- RawData[is.na(ManualExclusion) & Masking != "NONE" &
 First, lets start with observing the distribution of the sample sizes as a whole:
 
 ```{r}
-ggplot(RawData, aes(x = Enrollment)) +
-  geom_histogram(color = "black", fill = "white") +
+ggplot(RawData[Enrollment > 0], aes(x = Enrollment)) +
+  geom_histogram(color = "black", fill = "white", bins = 30) +
   scale_x_log10(
     breaks = scales::trans_breaks("log10", function(x) 10^x),
     labels = scales::trans_format("log10",
@@ -144,24 +144,28 @@ A few noteworthy quantiles:
 
 ```{r}
 ps <- c(0.5, 0.75, 0.9, 0.99, 0.999)
-data.table(`Percentile` = ps * 100,
-           `Sample size` = quantile(RawData$Enrollment, ps))
+knitr::kable(data.table(`Percentile` = ps * 100,
+                        `Sample size` =
+                          quantile(RawData$Enrollment, ps)),
+             digits = c(1, 0))
 ```
 
 Or, the other way around, a few noteworthy points of the cumulative distribution function:
 
 ```{r}
-ns <- c(0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50) * 1e3
-data.table(`Sample size` = ns,
-           `Proportion of trials smaller [%]` =
-             sapply(ns, function(n)
-               mean(RawData$Enrollment < n) * 100))
+ns <- c(0.01, 0.02, 0.05, 0.1, 0.2, 0.5,
+        1, 2, 5, 10, 20, 50) * 1e3
+knitr::kable(data.table(`Sample size` = ns,
+                        `Proportion of trials smaller [%]` =
+                          sapply(ns, function(n)
+                            mean(RawData$Enrollment < n) * 100)),
+             digits = c(0, 2))
 ```
 
 Returning to the visualizations, it might be interesting to compare different types. For example, the distribution according to whether the comparator is placebo or not:
 
 ```{r}
-ggplot(RawData, aes(x = Enrollment)) +
+ggplot(RawData[Enrollment > 0], aes(x = Enrollment)) +
   geom_density(aes(group = Placebo, color = Placebo)) +
   scale_x_log10(
     breaks = scales::trans_breaks("log10", function(x) 10^x),

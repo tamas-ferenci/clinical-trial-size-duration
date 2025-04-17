@@ -222,8 +222,8 @@ First, lets start with observing the distribution of the sample sizes as
 a whole:
 
 ``` r
-ggplot(RawData, aes(x = Enrollment)) +
-  geom_histogram(color = "black", fill = "white") +
+ggplot(RawData[Enrollment > 0], aes(x = Enrollment)) +
+  geom_histogram(color = "black", fill = "white", bins = 30) +
   scale_x_log10(
     breaks = scales::trans_breaks("log10", function(x) 10^x),
     labels = scales::trans_format("log10",
@@ -232,61 +232,60 @@ ggplot(RawData, aes(x = Enrollment)) +
   labs(y = "Count")
 ```
 
-    ## Warning in scale_x_log10(breaks = scales::trans_breaks("log10", function(x)
-    ## 10^x), : log-10 transformation introduced infinite values.
-
-    ## `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
-
-    ## Warning: Removed 2 rows containing non-finite outside the scale range
-    ## (`stat_bin()`).
-
 <img src="README_files/figure-gfm/unnamed-chunk-9-1.png" width="100%" />
 
 A few noteworthy quantiles:
 
 ``` r
 ps <- c(0.5, 0.75, 0.9, 0.99, 0.999)
-data.table(`Percentile` = ps * 100,
-           `Sample size` = quantile(RawData$Enrollment, ps))
+knitr::kable(data.table(`Percentile` = ps * 100,
+                        `Sample size` =
+                          quantile(RawData$Enrollment, ps)),
+             digits = c(1, 0))
 ```
 
-    ##    Percentile Sample size
-    ##         <num>       <num>
-    ## 1:       50.0       99.00
-    ## 2:       75.0      256.00
-    ## 3:       90.0      600.00
-    ## 4:       99.0     3632.00
-    ## 5:       99.9    22501.78
+| Percentile | Sample size |
+|-----------:|------------:|
+|       50.0 |          99 |
+|       75.0 |         256 |
+|       90.0 |         600 |
+|       99.0 |        3632 |
+|       99.9 |       22502 |
 
 Or, the other way around, a few noteworthy points of the cumulative
 distribution function:
 
 ``` r
-ns <- c(0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50) * 1e3
-data.table(`Sample size` = ns,
-           `Proportion of trials smaller [%]` =
-             sapply(ns, function(n)
-               mean(RawData$Enrollment < n) * 100))
+ns <- c(0.01, 0.02, 0.05, 0.1, 0.2, 0.5,
+        1, 2, 5, 10, 20, 50) * 1e3
+knitr::kable(data.table(`Sample size` = ns,
+                        `Proportion of trials smaller [%]` =
+                          sapply(ns, function(n)
+                            mean(RawData$Enrollment < n) * 100)),
+             digits = c(0, 2))
 ```
 
-    ##    Sample size Proportion of trials smaller [%]
-    ##          <num>                            <num>
-    ## 1:         100                         50.19371
-    ## 2:         200                         68.87276
-    ## 3:         500                         87.28620
-    ## 4:        1000                         95.08366
-    ## 5:        2000                         98.05444
-    ## 6:        5000                         99.31483
-    ## 7:       10000                         99.65826
-    ## 8:       20000                         99.86973
-    ## 9:       50000                         99.98139
+| Sample size | Proportion of trials smaller \[%\] |
+|------------:|-----------------------------------:|
+|          10 |                               1.10 |
+|          20 |                               6.08 |
+|          50 |                              27.81 |
+|         100 |                              50.19 |
+|         200 |                              68.87 |
+|         500 |                              87.29 |
+|        1000 |                              95.08 |
+|        2000 |                              98.05 |
+|        5000 |                              99.31 |
+|       10000 |                              99.66 |
+|       20000 |                              99.87 |
+|       50000 |                              99.98 |
 
 Returning to the visualizations, it might be interesting to compare
 different types. For example, the distribution according to whether the
 comparator is placebo or not:
 
 ``` r
-ggplot(RawData, aes(x = Enrollment)) +
+ggplot(RawData[Enrollment > 0], aes(x = Enrollment)) +
   geom_density(aes(group = Placebo, color = Placebo)) +
   scale_x_log10(
     breaks = scales::trans_breaks("log10", function(x) 10^x),
@@ -295,12 +294,6 @@ ggplot(RawData, aes(x = Enrollment)) +
     guide = "axis_logticks") +
   labs(y = "Count")
 ```
-
-    ## Warning in scale_x_log10(breaks = scales::trans_breaks("log10", function(x)
-    ## 10^x), : log-10 transformation introduced infinite values.
-
-    ## Warning: Removed 2 rows containing non-finite outside the scale range
-    ## (`stat_density()`).
 
 <img src="README_files/figure-gfm/unnamed-chunk-12-1.png" width="100%" />
 
