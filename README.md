@@ -228,17 +228,15 @@ RawData2 <- RawData[is.na(ManualExclusion) & Masking != "NONE" &
 
 ## Sample sizes
 
-First, lets start with observing the distribution of the sample sizes as
-a whole:
+First, lets start with visualizing the distribution of the sample sizes
+(note that the horizontal scale is logarithmic!):
 
 ``` r
 ggplot(RawData[Enrollment > 0], aes(x = Enrollment)) +
   geom_histogram(color = "black", fill = "white", bins = 30) +
-  scale_x_log10(
-    breaks = scales::trans_breaks("log10", function(x) 10^x),
-    labels = scales::trans_format("log10",
-                                  scales::math_format(10^.x)),
-    guide = "axis_logticks") +
+  scale_x_log10(breaks = scales::breaks_log(n = 6),
+                labels = scales::label_comma(),
+                guide = "axis_logticks") +
   labs(y = "Count")
 ```
 
@@ -297,11 +295,9 @@ comparator is placebo or not:
 ``` r
 ggplot(RawData[Enrollment > 0], aes(x = Enrollment)) +
   geom_density(aes(group = Placebo, color = Placebo)) +
-  scale_x_log10(
-    breaks = scales::trans_breaks("log10", function(x) 10^x),
-    labels = scales::trans_format("log10",
-                                  scales::math_format(10^.x)),
-    guide = "axis_logticks") +
+  scale_x_log10(breaks = scales::breaks_log(n = 6),
+                labels = scales::label_comma(),
+                guide = "axis_logticks") +
   labs(y = "Count")
 ```
 
