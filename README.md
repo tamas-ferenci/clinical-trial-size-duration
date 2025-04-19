@@ -7,6 +7,11 @@ Tamás Ferenci (<tamas.ferenci@medstat.hu>)
 - [Motivation](#motivation)
 - [Data extraction](#data-extraction)
 - [Sample sizes](#sample-sizes)
+- [Duration of follow-up](#duration-of-follow-up)
+- [Miscellaneous](#miscellaneous)
+  - [Relationship of sample size and follow-up
+    duration](#relationship-of-sample-size-and-follow-up-duration)
+  - [Person-years](#person-years)
 - [Further development
   possibilities](#further-development-possibilities)
 
@@ -41,23 +46,24 @@ drug effects.
 
 The “theoretically” part is equally important: RCTs can be poorly
 designed or executed, even in ways that reintroduce just the
-confounding. RCTs can be executed poorly, even in ways that bring back
-just the confounding. However, they at least offer the theoretical
-possibility of being free of confounding in a sense of having zero bias
-due to it – in an observational study we can never say, not even
-theoretically, that there is “surely” no confounding.
+confounding. Randomization failures, improper blinding, protocol
+deviations etc. commonly appear in practice. However, they at least
+offer the theoretical possibility of being free of confounding in a
+sense of having zero bias due to it – in an observational study we can
+never say, not even theoretically, that there is “surely” no
+confounding.
 
 That said, RCTs also have important limitations, two of which will be
-examined here. First, RCTs typically have much smaller *sample sizes*
-than observational studies. The latter can often include sample sizes
-orders of magnitude larger (and achieving the same sample size is also
-more feasible with an observational study). Second, RCTs usually have
-much shorter *duration of follow-up* than observational studies.
-Together, these limitations result in lower *statistical power* for
-RCTs. This means that small effects – whether small desired effects, or
-rare side effects – may be harder to detect in RCTs. (Side-effects that
-appear non-linearly in time, i.e., the risk of which does not accumulate
-linearly, but appears on after a certain time are also harder to detect,
+examined here. First, RCTs typically have smaller *sample sizes* than
+observational studies. The latter can often include sample sizes orders
+of magnitude larger (and achieving the same sample size is also more
+feasible with an observational study). Second, RCTs usually have much
+shorter *duration of follow-up* than observational studies. Together,
+these limitations mean that RCTs tend to have lower *statistical power*.
+This means that small effects – whether small desired effects, or rare
+side effects – may be harder to detect in RCTs. (Side effects with
+delayed onset – i.e., those that only emerge after a certain period of
+time rather than accumulating linearly – are harder to detect in RCTs,
 due to the limited follow-up.)
 
 But how significant is this limitation in practice? To explore this, it
@@ -74,7 +80,7 @@ scope, the vast majority of significant RCTs are submitted to
 ClinicalTrials.gov. This makes it an excellent resource for constructing
 a broad and detailed picture of contemporary trials, both geographically
 (covering studies worldwide) and temporally (spanning several decades).
-It is also important that ehe database of ClinicalTrials.gov is publicly
+It is also important that the database of ClinicalTrials.gov is publicly
 accessible.
 
 However, it’s important to acknowledge a key limitation: while
@@ -128,8 +134,8 @@ qrystring <- paste0(
   "AREA%5BDesignAllocation%5DRANDOMIZED+AND+",
   "AREA%5BEnrollmentType%5DACTUAL+AND+AREA",
   "%5BDesignPrimaryPurpose%5D%28TREATMENT+OR+PREVENTION%29&",
-  "query.intr=AREA%5BInterventionType%5D%28DRUG+OR+BIOLOGICAL%29&",
-  "filter.overallStatus=COMPLETED&pageSize=1000"
+  "query.intr=AREA%5BInterventionType%5D%28DRUG+OR+",
+  "BIOLOGICAL%29&filter.overallStatus=COMPLETED&pageSize=1000"
 )
 ```
 
@@ -170,19 +176,17 @@ RawData <- RawData[!grepl("cluster randomised", Brief.Summary)]
 ```
 
 This is unfortunately not perfect, so some cluster-randomized trials
-slip through. We can manually remove these (with a pointer to the source
-where the cluster-randomized nature can be seen):
+slip through. We can manually remove these (with a pointer here to the
+source where the cluster-randomized nature can be seen):
 
 ``` r
-RawData$ManualExclusion <- NA_character_
-RawData[NCT.Number == "NCT02027207"]$ManualExclusion <-
-  "Cluster-randomized (10.1016/j.vaccine.2013.10.021)"
-RawData[NCT.Number == "NCT04424511"]$ManualExclusion <-
-  "Cluster-randomized (clinicaltrials.gov)"
-RawData[NCT.Number == "NCT00269542"]$ManualExclusion <-
-  "Cluster-randomized (10.1093/jn/137.1.112)"
-RawData[NCT.Number == "NCT00289224"]$ManualExclusion <-
-  "Cluster-randomized (10.1016/S0140-6736(09)61297-6)"
+RawData <- RawData[
+  !NCT.Number %in%
+    c("NCT02027207", # 10.1016/j.vaccine.2013.10.021
+      "NCT04424511", # clinicaltrials.gov
+      "NCT00269542", # 10.1093/jn/137.1.112
+      "NCT00289224" # 10.1016/S0140-6736(09)61297-6
+    )]
 ```
 
 The `StudyDesign` field contains information on the study design, but
@@ -218,12 +222,134 @@ RawData$Placebo <- grepl("placebo", RawData$Interventions,
                          ignore.case = TRUE)
 ```
 
-Later we will often use only the blinded, placebo-controlled RCTs, so
-let’s collect them into a separate data table:
+This provides us with the information on the sample size, as this is
+just one of the fields we have downloaded (with the name `Enrollment`).
+Obtaining the duration of the follow-up is however far more complicated.
+
+The fundamental problem is that – in contrast to sample size – duration
+of follow-up is not stored as a separate, well-defined,
+machine-processable field. The best we have is that among results, for
+each outcome there is a field called “time frame”, which we can utilize
+– with several limitations. First, it’ll be only available for trials
+that have results posted. Second, the content of this field is still a
+non-structured verbal description, hence durations need to be extracted
+with text mining, which can never be perfect. Finally, this doesn’t
+actually informs us on the concrete follow-up, rather, as the name
+suggests, it simply specifies a time frame for the given outcome. At
+best, this can be considered to be a proxy for actual follow-up, but it
+has to be emphasized again, that – in contrast to the sample size – this
+will be only a rough measure.
+
+As these fields are available only among the results, we have to
+individually download it for each study:
 
 ``` r
-RawData2 <- RawData[is.na(ManualExclusion) & Masking != "NONE" &
-                      Placebo == TRUE]
+RawDataTimes <- lapply(RawData[
+  Study.Results == "YES"]$NCT.Number, function(nct)
+    jsonlite::fromJSON(rawToChar(curl::curl_fetch_memory(paste0(
+      "https://clinicaltrials.gov/api/v2/studies/", nct,
+      "?fields=resultsSection.outcomeMeasuresModule.",
+      "outcomeMeasures.timeFrame"))$content))$resultsSection$
+    outcomeMeasuresModule$outcomeMeasures$timeFrame)
+```
+
+Once we have the information, the duration has to be extracted. First,
+as it is usually done, we convert everything to lower case to simplify
+the subsequent steps:
+
+``` r
+RawDataTimes <- lapply(RawDataTimes, tolower)
+```
+
+Then we convert numbers given as text to numbers (by a very simple
+replacement from 1 to 100, paying attention only to matching just
+standalone words, not parts of a word):
+
+``` r
+RawDataTimes <- lapply(RawDataTimes, textclean::mgsub,
+                       pattern =
+                         paste0(" ",
+                                textclean::replace_number(1:100),
+                                " "),
+                       replacement = 1:100)
+```
+
+Finally, we carry out the extraction using a regular expression that
+matches two patterns: a number (possibly with decimal part) followed by
+a text that points to a duration (e.g., “2.5 years” or “1 month”), or a
+specifier that points to a duration followed by a number without decimal
+part (e.g., “Day 30” or “Month 2”):
+
+``` r
+qrypattern <- paste0(
+  "\\b\\d{1,3}((\\.|\\,)\\d{1,3})?\\s*(day|days|week|weeks|month",
+  "|months|hour|hours|min|mins|minute|minutes|year|years|yr|yrs)",
+  "\\b|\\b(day|week|month|year)\\s*\\d{1,3}\\b")
+```
+
+We convert the extracted durations uniformly to days:
+
+``` r
+convtime <- function(x) {
+  value <- as.numeric(stringr::str_extract(
+    gsub(",", ".", x, fixed = TRUE), "\\d{1,3}(.\\d{1,3})?"))
+  unit <- stringr::str_extract(x,
+                               "day|week|month|hour|min|year|yr")
+  value * switch(unit,
+                 "day" = 1, "week" = 7, "month" = 30,
+                 "hour" = 1/24, "min" = 1/3600, "year" = 365,
+                 "yr" = 365)
+}
+```
+
+The strategy will be that we extract every suspected duration that we
+can, and – after converting them to days – we simply take the largest
+one. This is arguable, but probably the best we can do to capture the
+whole length of the trial:
+
+``` r
+extrconv <- function(x) {
+  res <- lapply(unlist(stringr::str_extract_all(
+    x[!is.na(x)], pattern = qrypattern)), convtime)
+  if(length(res) == 0) NA else max(sapply(res, max, na.rm = TRUE),
+                                   na.rm = TRUE)
+}
+```
+
+We can now merge these data with the original database:
+
+``` r
+RawData <- merge(RawData, data.table(
+  NCT.Number = RawData[Study.Results == "YES"]$NCT.Number,
+  EstFU = sapply(RawDataTimes, extrconv)),
+  all.x = TRUE, sort = FALSE)
+```
+
+Unfortunately, this is still not perfect: some trials have a time frame
+like “During the 7-day (Days 0-6) post-vaccination period following each
+dose and across doses, for subjects between 18-64 years of age”, where
+the age will be captured as duration. We now just manually erase these:
+
+``` r
+RawData[NCT.Number %in%
+          c("NCT00985088", "NCT00534638", "NCT01857206",
+            "NCT01244490")]$EstFU <- NA
+```
+
+Let’s save these results to facilitate processing:
+
+``` r
+fwrite(RawData, "ClinicalTrialsGov-data.csv")
+saveRDS(RawData, "ClinicalTrialsGov-data.rds")
+```
+
+Thus, it’ll be available both in CSV and in RDS formats.
+
+Finally, as later we will often use only the blinded, placebo-controlled
+RCTs, let’s collect them into a separate data table:
+
+``` r
+RawData2 <- RawData[Masking != "NONE" & Placebo == TRUE]
 ```
 
 ## Sample sizes
@@ -240,7 +366,7 @@ ggplot(RawData[Enrollment > 0], aes(x = Enrollment)) +
   labs(y = "Count")
 ```
 
-<img src="README_files/figure-gfm/unnamed-chunk-10-1.png" width="100%" />
+<img src="README_files/figure-gfm/unnamed-chunk-19-1.png" width="100%" />
 
 A few noteworthy quantiles:
 
@@ -257,8 +383,8 @@ knitr::kable(data.table(`Percentile` = ps * 100,
 |       50.0 |          99 |
 |       75.0 |         256 |
 |       90.0 |         600 |
-|       99.0 |        3632 |
-|       99.9 |       22502 |
+|       99.0 |        3607 |
+|       99.9 |       21965 |
 
 Or, the other way around, a few noteworthy points of the cumulative
 distribution function:
@@ -277,16 +403,16 @@ knitr::kable(data.table(`Sample size` = ns,
 |------------:|-----------------------------------:|
 |          10 |                               1.10 |
 |          20 |                               6.08 |
-|          50 |                              27.81 |
+|          50 |                              27.80 |
 |         100 |                              50.19 |
 |         200 |                              68.87 |
-|         500 |                              87.29 |
-|        1000 |                              95.08 |
-|        2000 |                              98.05 |
-|        5000 |                              99.31 |
-|       10000 |                              99.66 |
-|       20000 |                              99.87 |
-|       50000 |                              99.98 |
+|         500 |                              87.28 |
+|        1000 |                              95.09 |
+|        2000 |                              98.06 |
+|        5000 |                              99.32 |
+|       10000 |                              99.67 |
+|       20000 |                              99.88 |
+|       50000 |                              99.99 |
 
 Returning to the visualizations, it might be interesting to compare
 different types. For example, the distribution according to whether the
@@ -301,15 +427,15 @@ ggplot(RawData[Enrollment > 0], aes(x = Enrollment)) +
   labs(y = "Count")
 ```
 
-<img src="README_files/figure-gfm/unnamed-chunk-13-1.png" width="100%" />
+<img src="README_files/figure-gfm/unnamed-chunk-22-1.png" width="100%" />
 
 Now we can have a look at the few largest trials:
 
 ``` r
-knitr::kable(head(RawData[is.na(ManualExclusion)][
+knitr::kable(RawData[
   order(Enrollment, decreasing = TRUE),
   .(NCT.Number, Study.URL, Phases, MaskingSimple, Placebo, Age,
-    Enrollment)], 10))
+    Enrollment)][1:10])
 ```
 
 | NCT.Number | Study.URL | Phases | MaskingSimple | Placebo | Age | Enrollment |
@@ -325,13 +451,13 @@ knitr::kable(head(RawData[is.na(ManualExclusion)][
 | NCT04368728 | <https://clinicaltrials.gov/study/NCT04368728> | PHASE2\|PHASE3 | TRIPLE | TRUE | CHILD, ADULT, OLDER_ADULT | 47079 |
 | NCT05540522 | <https://clinicaltrials.gov/study/NCT05540522> | PHASE3 | QUADRUPLE | FALSE | ADULT, OLDER_ADULT | 46169 |
 
-Restring ourselves only to place-controlled, blinded RCTs:
+Restring ourselves only to placebo-controlled, blinded RCTs:
 
 ``` r
-knitr::kable(head(RawData2[
+knitr::kable(RawData2[
   order(Enrollment, decreasing = TRUE),
   .(NCT.Number, Study.URL, Phases, MaskingSimple, Placebo, Age,
-    Enrollment)], 10))
+    Enrollment)][1:10])
 ```
 
 | NCT.Number | Study.URL | Phases | MaskingSimple | Placebo | Age | Enrollment |
@@ -350,10 +476,10 @@ knitr::kable(head(RawData2[
 And those that involved only children:
 
 ``` r
-knitr::kable(head(RawData2[Age == "CHILD"][
+knitr::kable(RawData2[Age == "CHILD"][
   order(Enrollment, decreasing = TRUE),
   .(NCT.Number, Study.URL, Phases, MaskingSimple, Placebo, Age,
-    Enrollment)], 10))
+    Enrollment)][1:10])
 ```
 
 | NCT.Number | Study.URL | Phases | MaskingSimple | Placebo | Age | Enrollment |
@@ -369,8 +495,189 @@ knitr::kable(head(RawData2[Age == "CHILD"][
 | NCT02964065 | <https://clinicaltrials.gov/study/NCT02964065> | PHASE3 | TRIPLE | TRUE | CHILD | 9000 |
 | NCT00329745 | <https://clinicaltrials.gov/study/NCT00329745> | PHASE3 | TRIPLE | TRUE | CHILD | 8687 |
 
+## Duration of follow-up
+
+Emphasizing again that this is just a rough estimate, let’s now
+visualize the distribution of the duration of the follow-up (for studies
+where it was more than 0.1 days):
+
+``` r
+ggplot(RawData[!is.na(EstFU) & EstFU > 0.1], aes(x = EstFU)) +
+  geom_histogram(color = "black", fill = "white", bins = 20) +
+  scale_x_log10(breaks = scales::breaks_log(n = 6),
+                labels = scales::label_comma(),
+                guide = "axis_logticks") +
+  labs(x = "Estimated duration of follow-up [days]", y = "Count")
+```
+
+<img src="README_files/figure-gfm/unnamed-chunk-26-1.png" width="100%" />
+
+A few noteworthy quantiles:
+
+``` r
+ps <- c(0.5, 0.75, 0.9, 0.99, 0.999)
+knitr::kable(data.table(`Percentile` = ps * 100,
+                        `Duration of follow-up` =
+                          quantile(RawData$EstFU, ps,
+                                   na.rm = TRUE)),
+             digits = c(1, 0))
+```
+
+| Percentile | Duration of follow-up |
+|-----------:|----------------------:|
+|       50.0 |                   105 |
+|       75.0 |                   360 |
+|       90.0 |                   897 |
+|       99.0 |                  2730 |
+|       99.9 |                  4745 |
+
+Or, the other way around, a few noteworthy points of the cumulative
+distribution function:
+
+``` r
+durs <- c(0.1, 0.5, 1, 5, 10, 50, 100, 500, 1000, 5000)
+knitr::kable(data.table(`Duration of follow-up` = durs,
+                        `Proportion of trials shorter [%]` =
+                          sapply(durs, function(dur)
+                            mean(RawData$EstFU < dur,
+                                 na.rm = TRUE) * 100)),
+             digits = c(0, 2))
+```
+
+| Duration of follow-up | Proportion of trials shorter \[%\] |
+|----------------------:|-----------------------------------:|
+|                     0 |                               2.54 |
+|                     0 |                               3.67 |
+|                     1 |                               4.02 |
+|                     5 |                               9.00 |
+|                    10 |                              12.03 |
+|                    50 |                              30.93 |
+|                   100 |                              49.66 |
+|                   500 |                              82.82 |
+|                  1000 |                              90.71 |
+|                  5000 |                              99.93 |
+
+Now we can have a look at the few longest trials:
+
+``` r
+knitr::kable(RawData[
+  order(EstFU, decreasing = TRUE),
+  .(NCT.Number, Study.URL, Phases, MaskingSimple, Placebo, Age,
+    EstFU)][1:10])
+```
+
+| NCT.Number | Study.URL | Phases | MaskingSimple | Placebo | Age | EstFU |
+|:---|:---|:---|:---|:---|:---|---:|
+| NCT02138006 | <https://clinicaltrials.gov/study/NCT02138006> | NA | NONE | FALSE | ADULT | 10220.0 |
+| NCT00549848 | <https://clinicaltrials.gov/study/NCT00549848> | PHASE3 | NONE | FALSE | CHILD, ADULT | 7482.5 |
+| NCT00289757 | <https://clinicaltrials.gov/study/NCT00289757> | PHASE4 | NONE | FALSE | ADULT | 7300.0 |
+| NCT00281658 | <https://clinicaltrials.gov/study/NCT00281658> | PHASE3 | DOUBLE | TRUE | ADULT, OLDER_ADULT | 5700.0 |
+| NCT03941860 | <https://clinicaltrials.gov/study/NCT03941860> | PHASE3 | DOUBLE | TRUE | ADULT, OLDER_ADULT | 5475.0 |
+| NCT00041119 | <https://clinicaltrials.gov/study/NCT00041119> | PHASE3 | NONE | FALSE | ADULT, OLDER_ADULT | 5475.0 |
+| NCT01989572 | <https://clinicaltrials.gov/study/NCT01989572> | PHASE3 | DOUBLE | TRUE | ADULT, OLDER_ADULT | 5475.0 |
+| NCT00875485 | <https://clinicaltrials.gov/study/NCT00875485> | PHASE4 | NONE | FALSE | CHILD | 5475.0 |
+| NCT00024102 | <https://clinicaltrials.gov/study/NCT00024102> | PHASE3 | NONE | FALSE | OLDER_ADULT | 5475.0 |
+| NCT00602459 | <https://clinicaltrials.gov/study/NCT00602459> | PHASE2 | NONE | FALSE | ADULT, OLDER_ADULT | 5475.0 |
+
+Restring ourselves only to place-controlled, blinded RCTs:
+
+``` r
+knitr::kable(RawData2[
+  order(EstFU, decreasing = TRUE),
+  .(NCT.Number, Study.URL, Phases, MaskingSimple, Placebo, Age,
+    EstFU)][1:10])
+```
+
+| NCT.Number | Study.URL | Phases | MaskingSimple | Placebo | Age | EstFU |
+|:---|:---|:---|:---|:---|:---|---:|
+| NCT00281658 | <https://clinicaltrials.gov/study/NCT00281658> | PHASE3 | DOUBLE | TRUE | ADULT, OLDER_ADULT | 5700.0 |
+| NCT03941860 | <https://clinicaltrials.gov/study/NCT03941860> | PHASE3 | DOUBLE | TRUE | ADULT, OLDER_ADULT | 5475.0 |
+| NCT01989572 | <https://clinicaltrials.gov/study/NCT01989572> | PHASE3 | DOUBLE | TRUE | ADULT, OLDER_ADULT | 5475.0 |
+| NCT00073528 | <https://clinicaltrials.gov/study/NCT00073528> | PHASE3 | QUADRUPLE | TRUE | ADULT, OLDER_ADULT | 5110.0 |
+| NCT00703326 | <https://clinicaltrials.gov/study/NCT00703326> | PHASE3 | DOUBLE | TRUE | ADULT, OLDER_ADULT | 4489.5 |
+| NCT00006392 | <https://clinicaltrials.gov/study/NCT00006392> | PHASE3 | QUADRUPLE | TRUE | ADULT, OLDER_ADULT | 4380.0 |
+| NCT02908685 | <https://clinicaltrials.gov/study/NCT02908685> | PHASE2 | DOUBLE | TRUE | CHILD, ADULT | 4380.0 |
+| NCT00090285 | <https://clinicaltrials.gov/study/NCT00090285> | PHASE3 | DOUBLE | TRUE | CHILD, ADULT | 4380.0 |
+| NCT00002874 | <https://clinicaltrials.gov/study/NCT00002874> | PHASE3 | QUADRUPLE | TRUE | CHILD, ADULT, OLDER_ADULT | 4380.0 |
+| NCT01247324 | <https://clinicaltrials.gov/study/NCT01247324> | PHASE3 | TRIPLE | TRUE | ADULT | 4116.0 |
+
+And those that involved only children:
+
+``` r
+knitr::kable(RawData2[Age == "CHILD"][
+  order(EstFU, decreasing = TRUE),
+  .(NCT.Number, Study.URL, Phases, MaskingSimple, Placebo, Age,
+    EstFU)][1:10])
+```
+
+| NCT.Number | Study.URL | Phases | MaskingSimple | Placebo | Age | EstFU |
+|:---|:---|:---|:---|:---|:---|---:|
+| NCT00092547 | <https://clinicaltrials.gov/study/NCT00092547> | PHASE3 | DOUBLE | TRUE | CHILD | 3780 |
+| NCT00033917 | <https://clinicaltrials.gov/study/NCT00033917> | PHASE3 | DOUBLE | TRUE | CHILD | 2920 |
+| NCT00568698 | <https://clinicaltrials.gov/study/NCT00568698> | PHASE1\|PHASE2 | DOUBLE | TRUE | CHILD | 2920 |
+| NCT00352053 | <https://clinicaltrials.gov/study/NCT00352053> | PHASE3 | DOUBLE | TRUE | CHILD | 2352 |
+| NCT02223182 | <https://clinicaltrials.gov/study/NCT02223182> | PHASE1\|PHASE2 | QUADRUPLE | TRUE | CHILD | 2190 |
+| NCT00815035 | <https://clinicaltrials.gov/study/NCT00815035> | PHASE2 | TRIPLE | TRUE | CHILD | 2190 |
+| NCT00000575 | <https://clinicaltrials.gov/study/NCT00000575> | PHASE3 | TRIPLE | TRUE | CHILD | 2190 |
+| NCT00568802 | <https://clinicaltrials.gov/study/NCT00568802> | PHASE1\|PHASE2 | DOUBLE | TRUE | CHILD | 2190 |
+| NCT01374516 | <https://clinicaltrials.gov/study/NCT01374516> | PHASE3 | QUADRUPLE | TRUE | CHILD | 2160 |
+| NCT01373281 | <https://clinicaltrials.gov/study/NCT01373281> | PHASE3 | QUADRUPLE | TRUE | CHILD | 2160 |
+
+## Miscellaneous
+
+### Relationship of sample size and follow-up duration
+
+It is interesting to check if there is any relationship between the
+sample size and the duration of the follow-up:
+
+``` r
+ggplot(RawData[Enrollment > 0 & !is.na(EstFU) & EstFU > 0.1],
+       aes(x = Enrollment, y = EstFU)) +
+  geom_point(size = 0.1, alpha = 0.3) +
+  scale_x_log10(breaks = scales::breaks_log(n = 6),
+                labels = scales::label_comma(),
+                guide = "axis_logticks") +
+  scale_y_log10(breaks = scales::breaks_log(n = 6),
+                labels = scales::label_comma(),
+                guide = "axis_logticks") +
+  geom_smooth(method = "gam", formula = y ~ s(x, bs = "cs")) +
+  labs(y = "Estimated duration of follow-up [days]")
+```
+
+<img src="README_files/figure-gfm/unnamed-chunk-32-1.png" width="100%" />
+
+### Person-years
+
+Given the uncertainty in the estimation of the follow-up duration, this
+is also somewhat approximate, but let’s check what trials had the
+largest follow-up in terms of person-years:
+
+``` r
+RawData$PY <- RawData$Enrollment * RawData$EstFU
+knitr::kable(
+  RawData[order(PY, decreasing = TRUE),
+          .(NCT.Number, Study.URL, Phases, MaskingSimple, Placebo,
+            Age, Enrollment, EstFU, PY/1e6)][1:10])
+```
+
+| NCT.Number | Study.URL | Phases | MaskingSimple | Placebo | Age | Enrollment | EstFU | V9 |
+|:---|:---|:---|:---|:---|:---|---:|---:|---:|
+| NCT00006392 | <https://clinicaltrials.gov/study/NCT00006392> | PHASE3 | QUADRUPLE | TRUE | ADULT, OLDER_ADULT | 35533 | 4380.00 | 155.63454 |
+| NCT00000479 | <https://clinicaltrials.gov/study/NCT00000479> | PHASE3 | TRIPLE | TRUE | ADULT, OLDER_ADULT | 39876 | 3686.50 | 147.00287 |
+| NCT00744263 | <https://clinicaltrials.gov/study/NCT00744263> | PHASE4 | QUADRUPLE | TRUE | OLDER_ADULT | 84496 | 1449.05 | 122.43893 |
+| NCT00861380 | <https://clinicaltrials.gov/study/NCT00861380> | PHASE3 | DOUBLE | FALSE | CHILD | 41188 | 2310.00 | 95.14428 |
+| NCT00202878 | <https://clinicaltrials.gov/study/NCT00202878> | PHASE3 | TRIPLE | TRUE | ADULT, OLDER_ADULT | 18144 | 3285.00 | 59.60304 |
+| NCT02271230 | <https://clinicaltrials.gov/study/NCT02271230> | PHASE3 | QUADRUPLE | TRUE | ADULT, OLDER_ADULT | 25871 | 1825.00 | 47.21458 |
+| NCT01374516 | <https://clinicaltrials.gov/study/NCT01374516> | PHASE3 | QUADRUPLE | TRUE | CHILD | 20869 | 2160.00 | 45.07704 |
+| NCT02185417 | <https://clinicaltrials.gov/study/NCT02185417> | PHASE3 | NONE | FALSE | OLDER_ADULT | 20723 | 1971.00 | 40.84503 |
+| NCT01144338 | <https://clinicaltrials.gov/study/NCT01144338> | PHASE3 | TRIPLE | TRUE | ADULT, OLDER_ADULT | 14752 | 2737.50 | 40.38360 |
+| NCT00461630 | <https://clinicaltrials.gov/study/NCT00461630> | PHASE3 | QUADRUPLE | FALSE | ADULT, OLDER_ADULT | 25673 | 1423.50 | 36.54552 |
+
 ## Further development possibilities
 
 - Better identification of cluster-randomized trials.
 - Better identification of placebo control.
-- Investigation of the duration of follow-up.
+- Better extraction of the durations from the
+  `outcomeMeasures.timeFrame` fields.
+- More investigations of the possible predictors (such as the
+  placebo-control done above).
