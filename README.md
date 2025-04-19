@@ -340,10 +340,16 @@ Let’s save these results to facilitate processing:
 
 ``` r
 fwrite(RawData, "ClinicalTrialsGov-data.csv")
+zip::zip("ClinicalTrialsGov-data.zip",
+         "ClinicalTrialsGov-data.csv")
 saveRDS(RawData, "ClinicalTrialsGov-data.rds")
 ```
 
-Thus, it’ll be available both in CSV and in RDS formats.
+Thus, it’ll be available both in (compressed)
+[CSV](https://github.com/tamas-ferenci/clinical-trial-size-duration/blob/main/ClinicalTrialsGov-data.zip)
+and in
+[RDS](https://github.com/tamas-ferenci/clinical-trial-size-duration/blob/main/ClinicalTrialsGov-data.rds)
+formats.
 
 Finally, as later we will often use only the blinded, placebo-controlled
 RCTs, let’s collect them into a separate data table:
@@ -657,10 +663,10 @@ RawData$PY <- RawData$Enrollment * RawData$EstFU
 knitr::kable(
   RawData[order(PY, decreasing = TRUE),
           .(NCT.Number, Study.URL, Phases, MaskingSimple, Placebo,
-            Age, Enrollment, EstFU, PY/1e6)][1:10])
+            Age, Enrollment, EstFU, `PY [M]` = PY/1e6)][1:10])
 ```
 
-| NCT.Number | Study.URL | Phases | MaskingSimple | Placebo | Age | Enrollment | EstFU | V9 |
+| NCT.Number | Study.URL | Phases | MaskingSimple | Placebo | Age | Enrollment | EstFU | PY \[M\] |
 |:---|:---|:---|:---|:---|:---|---:|---:|---:|
 | NCT00006392 | <https://clinicaltrials.gov/study/NCT00006392> | PHASE3 | QUADRUPLE | TRUE | ADULT, OLDER_ADULT | 35533 | 4380.00 | 155.63454 |
 | NCT00000479 | <https://clinicaltrials.gov/study/NCT00000479> | PHASE3 | TRIPLE | TRUE | ADULT, OLDER_ADULT | 39876 | 3686.50 | 147.00287 |
