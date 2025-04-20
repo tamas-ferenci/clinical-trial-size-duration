@@ -15,7 +15,7 @@ knitr::opts_chunk$set(echo = TRUE, out.width = "100%",
 
 ## Motivation
 
-Randomized controlled trials (RCTs) are commonly referred to as the "gold standard" for establishing the safety and efficacy of a drug, and are now almost universally required for obtaining marketing authorization for new pharmaceuticals. This designation is well-earned: through randomization, RCTs can theoretically ensure that there are *no* systematic differences between the groups being compared -- aside from their exposure to the drug. As a result, any observed differences in outcomes -- whether beneficial effects (efficacy) or adverse effects (safety) -- can be confidently attributed to the drug itself (alongside random variability, which can be addressed statistically). In other words, there is no [confounding](https://www.annualreviews.org/content/journals/10.1146/annurev.publhealth.22.1.189).
+Randomized controlled trials (RCTs) are commonly referred to as the "gold standard" for establishing the safety and efficacy of a drug, and are now almost universally required for obtaining marketing authorization for new pharmaceuticals. This designation is well-earned: through randomization, RCTs can theoretically ensure that there are *no* systematic differences *at all* between the groups being compared -- aside from their exposure to the drug. As a result, any observed differences in outcomes -- whether beneficial effects (efficacy) or adverse effects (safety) -- can be confidently attributed to the drug itself (alongside random variability, which can be addressed statistically). In other words, there is no [confounding](https://www.annualreviews.org/content/journals/10.1146/annurev.publhealth.22.1.189).
 
 The key phrase here is "at all": randomization implies no differences even in unknown or unmeasured variables -- even in factors we are not aware could act as confounders. This stands in sharp contrast to observational studies, where we can only adjust for *known and measured* confounders. These can be managed through design strategies like restriction, or analytical methods such as stratification or regression adjustment. However, these approaches are only effective for variables we recognize as confounders and for which we have collected data (and even then, limitations might remain, for example, the number of confounders we can adjust for is constrained by the study’s sample size). This is the most important strength of RCTs: their potential to eliminate bias from confounding, giving them unique power in evaluating drug effects.
 
@@ -278,7 +278,8 @@ Now we can have a look at the few largest trials:
 ```{r}
 knitr::kable(RawData[
   order(Enrollment, decreasing = TRUE),
-  .(NCT.Number, Study.URL, Phases, MaskingSimple, Placebo, Age,
+  .(NCT = paste0("[", NCT.Number, "](", Study.URL, ")"),
+    Phase = Phases, Masking = MaskingSimple, Placebo, Age,
     Enrollment)][1:10])
 ```
 
@@ -287,7 +288,8 @@ Restring ourselves only to placebo-controlled, blinded RCTs:
 ```{r}
 knitr::kable(RawData2[
   order(Enrollment, decreasing = TRUE),
-  .(NCT.Number, Study.URL, Phases, MaskingSimple, Placebo, Age,
+  .(NCT = paste0("[", NCT.Number, "](", Study.URL, ")"),
+    Phase = Phases, Masking = MaskingSimple, Placebo, Age,
     Enrollment)][1:10])
 ```
 
@@ -296,7 +298,8 @@ And those that involved only children:
 ```{r}
 knitr::kable(RawData2[Age == "CHILD"][
   order(Enrollment, decreasing = TRUE),
-  .(NCT.Number, Study.URL, Phases, MaskingSimple, Placebo, Age,
+  .(NCT = paste0("[", NCT.Number, "](", Study.URL, ")"),
+    Phase = Phases, Masking = MaskingSimple, Placebo, Age,
     Enrollment)][1:10])
 ```
 
@@ -333,7 +336,7 @@ knitr::kable(data.table(`Duration of follow-up` = durs,
                           sapply(durs, function(dur)
                             mean(RawData$EstFU < dur,
                                  na.rm = TRUE) * 100)),
-             digits = c(0, 2))
+             digits = c(1, 2))
 ```
 
 Now we can have a look at the few longest trials:
@@ -341,8 +344,9 @@ Now we can have a look at the few longest trials:
 ```{r}
 knitr::kable(RawData[
   order(EstFU, decreasing = TRUE),
-  .(NCT.Number, Study.URL, Phases, MaskingSimple, Placebo, Age,
-    EstFU)][1:10])
+  .(NCT = paste0("[", NCT.Number, "](", Study.URL, ")"),
+    Phase = Phases, Masking = MaskingSimple, Placebo, Age,
+    `Estimated FU [day]` = EstFU)][1:10])
 ```
 
 Restring ourselves only to place-controlled, blinded RCTs:
@@ -350,8 +354,9 @@ Restring ourselves only to place-controlled, blinded RCTs:
 ```{r}
 knitr::kable(RawData2[
   order(EstFU, decreasing = TRUE),
-  .(NCT.Number, Study.URL, Phases, MaskingSimple, Placebo, Age,
-    EstFU)][1:10])
+  .(NCT = paste0("[", NCT.Number, "](", Study.URL, ")"),
+    Phase = Phases, Masking = MaskingSimple, Placebo, Age,
+    `Estimated FU [day]` = EstFU)][1:10])
 ```
 
 And those that involved only children:
@@ -359,8 +364,9 @@ And those that involved only children:
 ```{r}
 knitr::kable(RawData2[Age == "CHILD"][
   order(EstFU, decreasing = TRUE),
-  .(NCT.Number, Study.URL, Phases, MaskingSimple, Placebo, Age,
-    EstFU)][1:10])
+  .(NCT = paste0("[", NCT.Number, "](", Study.URL, ")"),
+    Phase = Phases, Masking = MaskingSimple, Placebo, Age,
+    `Estimated FU [day]` = EstFU)][1:10])
 ```
 
 ## Miscellaneous
@@ -391,8 +397,10 @@ Given the uncertainty in the estimation of the follow-up duration, this is also 
 RawData$PY <- RawData$Enrollment * RawData$EstFU
 knitr::kable(
   RawData[order(PY, decreasing = TRUE),
-          .(NCT.Number, Study.URL, Phases, MaskingSimple, Placebo,
-            Age, Enrollment, EstFU, `PY [M]` = PY/1e6)][1:10])
+          .(NCT = paste0("[", NCT.Number, "](", Study.URL, ")"),
+    Phase = Phases, Masking = MaskingSimple, Placebo,
+            Age, Enrollment, `Estimated FU [day]` = EstFU,
+    `PY [M]` = PY/1e6)][1:10])
 ```
 
 ## Further development possibilities
@@ -400,4 +408,5 @@ knitr::kable(
 - Better identification of cluster-randomized trials.
 - Better identification of placebo control.
 - Better extraction of the durations from the `outcomeMeasures.timeFrame` fields.
-- More investigations of the possible predictors (such as the placebo-control done above). 
+- More investigations of the possible predictors (such as the placebo-control done above).
+- Extracting therapeutic areas as well.
