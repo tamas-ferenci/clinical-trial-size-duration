@@ -27,22 +27,24 @@ aside from their exposure to the drug. As a result, any observed
 differences in outcomes – whether beneficial effects (efficacy) or
 adverse effects (safety) – can be confidently attributed to the drug
 itself (alongside random variability, which can be addressed
-statistically). In other words, there is no
+statistically), and not to other differences between groups as there are
+no such differences. In other words, there is no
 [confounding](https://www.annualreviews.org/content/journals/10.1146/annurev.publhealth.22.1.189).
+This eliminates a fundamental – although not only – source of *bias*.
 
 The key phrase here is “at all”: randomization implies no differences
-even in unknown or unmeasured variables – even in factors we are not
-aware could act as confounders. This stands in sharp contrast to
-observational studies, where we can only adjust for *known and measured*
-confounders. These can be managed through design strategies like
-restriction, or analytical methods such as stratification or regression
-adjustment. However, these approaches are only effective for variables
-we recognize as confounders and for which we have collected data (and
-even then, limitations might remain, for example, the number of
-confounders we can adjust for is constrained by the study’s sample
-size). This is the most important strength of RCTs: their potential to
-eliminate bias from confounding, giving them unique power in evaluating
-drug effects.
+even in unknown or unmeasured variables – even in factors we couldn’t
+measure, even in factors we are not aware could act as confounders. This
+stands in sharp contrast to observational studies, where we can only
+adjust for *known and measured* confounders. These can be managed
+through design strategies like restriction, or analytical methods such
+as stratification or regression adjustment. However, these approaches
+are only effective for variables we recognize as confounders and for
+which we have collected data (and even then, limitations might remain,
+for example, the number of confounders we can adjust for is constrained
+by the study’s sample size). This is the most important strength of
+RCTs: their potential to eliminate bias from confounding, giving them
+unique power in evaluating drug effects.
 
 The “theoretically” part is equally important: RCTs can be poorly
 designed or executed, even in ways that reintroduce just the
@@ -66,9 +68,19 @@ delayed onset – i.e., those that only emerge after a certain period of
 time rather than accumulating linearly – are harder to detect in RCTs,
 due to the limited follow-up.)
 
-But how significant is this limitation in practice? To explore this, it
-is instructive to look at how large and how long RCTs can actually be.
-We will investigate this using data from ClinicalTrials.gov.
+But how significant is this limitation in practice? This report does not
+attempt to provide a comprehensive analysis that considers all factors.
+(It is certainly possible to approach such an analysis. For example,
+[one can define](https://www.fharrell.com/post/ehrs-rcts/index.html) the
+“effective” sample size of an observational study as the sample size of
+an unbiased RCT that would have the same error as the biased
+observational study, with an appropriate definition of error. Even for
+seemingly moderate bias, this can be much smaller than the actual sample
+size. These issues will not be investigated now.) Here, our aim is
+simply to collect empirical data on the limitations of RCTs, as it is
+instructive to look at how large and how long RCTs can actually be to to
+understand these limitations. We will investigate this using data from
+ClinicalTrials.gov.
 
 The US National Library of Medicine’s ClinicalTrials.gov registry
 (<https://clinicaltrials.gov/>) is a comprehensive
