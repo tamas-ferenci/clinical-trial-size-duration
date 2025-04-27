@@ -92,14 +92,17 @@ RawData <- parallel::parLapply(cl, list.files("./ctg-studies/"), function(f)
          Phase = list(protocolSection$designModule$phases),
          TargetDuration = protocolSection$designModule$targetDuration,
          Age = list(protocolSection$eligibilityModule$stdAges),
-         ArmGroupType = list(unlist(lapply(protocolSection$armsInterventionsModule$armGroups, `[[`, "type"))),
+         ArmGroupType =
+           list(unlist(lapply(protocolSection$armsInterventionsModule$armGroups, `[[`, "type"))),
          TimeFrame = list(unlist(c(
            lapply(protocolSection$outcomesModule$primaryOutcomes, `[[`, "timeFrame"),
            lapply(protocolSection$outcomesModule$secondaryOutcomes, `[[`, "timeFrame"),
            lapply(protocolSection$outcomesModule$otherOutcomes, `[[`, "timeFrame"),
            if(exists("resultsSection"))
-             lapply(resultsSection$outcomeMeasuresModule$outcomeMeasures, `[[`, "timeFrame") else NULL))),
-         ConditionMeSH = list(unlist(lapply(derivedSection$conditionBrowseModule$meshes, `[[`, "id")))
+             lapply(resultsSection$outcomeMeasuresModule$outcomeMeasures,
+                    `[[`, "timeFrame") else NULL))),
+         ConditionMeSH =
+           list(unlist(lapply(derivedSection$conditionBrowseModule$meshes, `[[`, "id")))
        )
   )
 )
@@ -344,7 +347,7 @@ ggplot(RawData[!is.na(EstFU) & EstFU > 0.1], aes(x = EstFU)) +
   scale_x_log10(breaks = scales::breaks_log(n = 6),
                 labels = scales::label_comma(),
                 guide = "axis_logticks") +
-  labs(x = "Estimated duration of follow-up [days]", y = "Count")
+  labs(x = "Estimated duration of follow-up [day]", y = "Count")
 ```
 
 A few noteworthy quantiles:
@@ -362,7 +365,7 @@ Or, the other way around, a few noteworthy points of the cumulative distribution
 
 ```{r}
 durs <- c(0.1, 0.5, 1, 5, 10, 50, 100, 500, 1000, 5000)
-knitr::kable(data.table(`Duration of follow-up` =
+knitr::kable(data.table(`Duration of follow-up [day]` =
                           format(durs, scientific = FALSE),
                         `Proportion of trials shorter [%]` =
                           sapply(durs, function(dur)
@@ -418,7 +421,7 @@ ggplot(RawData[Enrollment > 0 & !is.na(EstFU) & EstFU > 0.1],
                 labels = scales::label_comma(),
                 guide = "axis_logticks") +
   geom_smooth(method = "gam", formula = y ~ s(x, bs = "cs")) +
-  labs(y = "Estimated duration of follow-up [days]")
+  labs(y = "Estimated duration of follow-up [day]")
 ```
 
 ### Person-years

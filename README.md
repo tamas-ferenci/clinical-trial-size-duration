@@ -179,9 +179,9 @@ bench::mark(
     ## # A tibble: 3 × 6
     ##   expression                            min  median `itr/sec` mem_alloc `gc/sec`
     ##   <bch:expr>                        <bch:t> <bch:t>     <dbl> <bch:byt>    <dbl>
-    ## 1 "jsonlite::fromJSON(\"./ctg-stud… 65.78ms    68ms      13.9    1.54MB    21.9 
-    ## 2 "rjson::fromJSON(file = \"./ctg-…  7.64ms  8.51ms     109.    321.2KB     9.93
-    ## 3 "RJSONIO::fromJSON(\"./ctg-studi… 15.54ms 16.48ms      57.5    1.48MB     3.96
+    ## 1 "jsonlite::fromJSON(\"./ctg-stud… 63.17ms 75.59ms      13.2    1.54MB    20.7 
+    ## 2 "rjson::fromJSON(file = \"./ctg-…  7.29ms  8.35ms     110.    321.2KB    11.8 
+    ## 3 "RJSONIO::fromJSON(\"./ctg-studi…  14.8ms 16.45ms      59.6    1.48MB     3.84
 
 Based on these results, we will use the `rjson` package.
 
@@ -209,14 +209,17 @@ RawData <- parallel::parLapply(cl, list.files("./ctg-studies/"), function(f)
          Phase = list(protocolSection$designModule$phases),
          TargetDuration = protocolSection$designModule$targetDuration,
          Age = list(protocolSection$eligibilityModule$stdAges),
-         ArmGroupType = list(unlist(lapply(protocolSection$armsInterventionsModule$armGroups, `[[`, "type"))),
+         ArmGroupType =
+           list(unlist(lapply(protocolSection$armsInterventionsModule$armGroups, `[[`, "type"))),
          TimeFrame = list(unlist(c(
            lapply(protocolSection$outcomesModule$primaryOutcomes, `[[`, "timeFrame"),
            lapply(protocolSection$outcomesModule$secondaryOutcomes, `[[`, "timeFrame"),
            lapply(protocolSection$outcomesModule$otherOutcomes, `[[`, "timeFrame"),
            if(exists("resultsSection"))
-             lapply(resultsSection$outcomeMeasuresModule$outcomeMeasures, `[[`, "timeFrame") else NULL))),
-         ConditionMeSH = list(unlist(lapply(derivedSection$conditionBrowseModule$meshes, `[[`, "id")))
+             lapply(resultsSection$outcomeMeasuresModule$outcomeMeasures,
+                    `[[`, "timeFrame") else NULL))),
+         ConditionMeSH =
+           list(unlist(lapply(derivedSection$conditionBrowseModule$meshes, `[[`, "id")))
        )
   )
 )
@@ -605,7 +608,7 @@ ggplot(RawData[!is.na(EstFU) & EstFU > 0.1], aes(x = EstFU)) +
   scale_x_log10(breaks = scales::breaks_log(n = 6),
                 labels = scales::label_comma(),
                 guide = "axis_logticks") +
-  labs(x = "Estimated duration of follow-up [days]", y = "Count")
+  labs(x = "Estimated duration of follow-up [day]", y = "Count")
 ```
 
 <img src="README_files/figure-gfm/unnamed-chunk-23-1.png" width="100%" />
@@ -634,7 +637,7 @@ distribution function:
 
 ``` r
 durs <- c(0.1, 0.5, 1, 5, 10, 50, 100, 500, 1000, 5000)
-knitr::kable(data.table(`Duration of follow-up` =
+knitr::kable(data.table(`Duration of follow-up [day]` =
                           format(durs, scientific = FALSE),
                         `Proportion of trials shorter [%]` =
                           sapply(durs, function(dur)
@@ -643,18 +646,18 @@ knitr::kable(data.table(`Duration of follow-up` =
              digits = c(NA, 2))
 ```
 
-| Duration of follow-up | Proportion of trials shorter \[%\] |
-|:----------------------|-----------------------------------:|
-| 0.1                   |                               3.12 |
-| 0.5                   |                               4.44 |
-| 1.0                   |                               4.94 |
-| 5.0                   |                              12.61 |
-| 10.0                  |                              16.91 |
-| 50.0                  |                              39.20 |
-| 100.0                 |                              57.72 |
-| 500.0                 |                              87.59 |
-| 1000.0                |                              93.86 |
-| 5000.0                |                              99.96 |
+| Duration of follow-up \[day\] | Proportion of trials shorter \[%\] |
+|:------------------------------|-----------------------------------:|
+| 0.1                           |                               3.12 |
+| 0.5                           |                               4.44 |
+| 1.0                           |                               4.94 |
+| 5.0                           |                              12.61 |
+| 10.0                          |                              16.91 |
+| 50.0                          |                              39.20 |
+| 100.0                         |                              57.72 |
+| 500.0                         |                              87.59 |
+| 1000.0                        |                              93.86 |
+| 5000.0                        |                              99.96 |
 
 Now we can have a look at the few longest trials:
 
@@ -743,7 +746,7 @@ ggplot(RawData[Enrollment > 0 & !is.na(EstFU) & EstFU > 0.1],
                 labels = scales::label_comma(),
                 guide = "axis_logticks") +
   geom_smooth(method = "gam", formula = y ~ s(x, bs = "cs")) +
-  labs(y = "Estimated duration of follow-up [days]")
+  labs(y = "Estimated duration of follow-up [day]")
 ```
 
 <img src="README_files/figure-gfm/unnamed-chunk-29-1.png" width="100%" />
