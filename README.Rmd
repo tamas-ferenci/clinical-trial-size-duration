@@ -234,10 +234,65 @@ RawData[NCT %in%
           c("NCT00985088", "NCT00534638", "NCT01857206",
             "NCT01244490", "NCT04742738", "NCT04695717",
             "NCT05398848", "NCT02914652", "NCT02100436")
-        ]$EstFU <- NA
+]$EstFU <- NA
 ```
 
-Let's save these results to facilitate processing:
+The last piece of information we now try to extract is the therapeutic area. Fortunately, the data structure contains information on this in a module named "condition". This includes, or may include, so-called terms, such as "pneumonia", an ID, such as "D011014", which is just the [Medical Subject Headings](https://www.nlm.nih.gov/mesh/meshhome.html) (MeSH) identifier, and a bunch of hierarchical information (ancestors, leaves etc). The term is hard to use, because it is not linked to the therapeutic area. The hierarchical information would be appropriate for this end, but -- even if this information is present -- it does not give a simple linear hierarchy from which the therapeutic are could be easily deduced. Luckily, we don't even need this: the MeSH identifier is unique, standardized, and -- most importantly -- arranged [in a hiearchy](https://meshb.nlm.nih.gov/treeView) that can be looked up. The [tree view](https://meshb.nlm.nih.gov/record/ui?ui=D011014) of "pneumonia" shows that is is under the category "respiratory tract infections", which is under "infections". This is the highest hiearchical level which we will call therapeutic area. Pneumonia also exemplifies that there might be more than one area for a given condition: pneumonia also belongs to "lung diseases", which is under the highest level, i.e., therapeutic area of "respiratory tract diseases". Of note, these can be deduced from the so-called Tree Number of a given condition: pneumonia has a tree number of C01.748.610 (C01.748 is "respiratory tract infections", C01 is "infections") and a tree number of C08.381.677 (C08.381 is "lung diseases", C08 is "respiratory tract diseases"), among others.
+
+After [downloading](https://www.nlm.nih.gov/databases/download/mesh.html) the whole MeSH database in XML format, we define a few variables and functions that allow the extraction of the above information:
+
+```{r}
+meshtemp <- XML::xmlParse("desc2025.xml")
+meshtempDF <- XML::xmlToDataFrame(meshtemp)
+meshtemp2 <- XML::getNodeSet(meshtemp, "//DescriptorRecord")
+meshtemp3 <- XML::xmlValue(XML::getNodeSet(
+  meshtemp, "//DescriptorRecord/DescriptorUI"))
+extrdisease <- function(meshs)
+  unique(unlist(lapply(meshs[!is.na(meshs)], function(mesh)
+    unique(sapply(XML::xmlToList(XML::xmlChildren(
+      meshtemp2[[which(meshtemp3 == mesh)]])$TreeNumberList),
+      substring, 1, 3)))))
+```
+
+Using this, we extract the highest hiearchical level, i.e., the therapeutic area for each MeSH identifier:
+
+```{r}
+RawData$ConditionMeSHHead <- lapply(RawData$ConditionMeSH,
+                                    extrdisease)
+```
+
+Note that this returns *all* therapeutic areas (as we have seen for the example of pneumonia, there may be more than one for a given condition).
+
+We also extract the human-readable names of the therapeutic areas for better labelling of the plots:
+
+```{r}
+ConditionMeSHTable <- rbindlist(lapply(unique(unlist(RawData$ConditionMeSHHead)), function(head)
+  data.table(ConditionMeSHHead = head,
+             ConditionMeSHHeadName = meshtempDF[
+               !is.na(meshtempDF$TreeNumberList) &
+                 meshtempDF$TreeNumberList == head, "DescriptorName"])))
+ConditionMeSHTable$Main <- substring(ConditionMeSHTable$ConditionMeSHHead, 1, 1)
+ConditionMeSHTable <- ConditionMeSHTable[Main == "C" & ConditionMeSHHead != "C23"]
+ConditionMeSHTable$ConditionMeSHHeadNamePrint <- stringr::str_wrap(ConditionMeSHTable$ConditionMeSHHeadName, 30)
+knitr::kable(ConditionMeSHTable[order(ConditionMeSHHead)][
+  , .(`MeSH name` = ConditionMeSHHeadName,
+      `MeSH Tree ID` = ConditionMeSHHead)])
+```
+
+(We limit ourselves to "C", which is "Diseases", and we exclude "C23" which is "Pathological Conditions, Signs and Symptoms".)
+
+Finally, we create a table containing the therapeutic areas and the extracted information (sample size, duration of follow-up) from the trials. We will make use of the above-mentioned unnesting feature: a trial with more than one therapeutic area will appear in *every* of its therapeutic areas. We also save information on how many trials appear in a given thereaputic area, so that later we will be able to exclude very small areas from the plots.
+
+```{r}
+RawDataMeSH <- RawData[, .(ConditionMeSHHead = unlist(ConditionMeSHHead)), .(Enrollment, EstFU, NCT)]
+RawDataMeSH <- merge(RawDataMeSH,
+                     RawDataMeSH[, .N, .(ConditionMeSHHead)],
+                     by = "ConditionMeSHHead")
+RawDataMeSH <- merge(RawDataMeSH, ConditionMeSHTable,
+                     by = "ConditionMeSHHead")
+```
+
+To conclude our work, let's save the results to facilitate further processing:
 
 ```{r}
 RawData$TimeFrame <- ifelse(lapply(RawData$TimeFrame, is.null),
@@ -247,6 +302,9 @@ RawData$ArmGroupType <- ifelse(
 RawData$ConditionMeSH <- ifelse(
   lapply(RawData$ConditionMeSH, is.null), NA,
   RawData$ConditionMeSH)
+RawData$ConditionMeSHHead <- ifelse(
+  lapply(RawData$ConditionMeSHHead, is.null),
+  NA, RawData$ConditionMeSHHead)
 fwrite(RawData, "ClinicalTrialsGov-data.csv")
 zip::zip("ClinicalTrialsGov-data.zip",
          "ClinicalTrialsGov-data.csv")
@@ -254,12 +312,6 @@ saveRDS(RawData, "ClinicalTrialsGov-data.rds")
 ```
 
 Thus, it'll be available both in (compressed) [CSV](https://github.com/tamas-ferenci/clinical-trial-size-duration/blob/main/ClinicalTrialsGov-data.zip) and in [RDS](https://github.com/tamas-ferenci/clinical-trial-size-duration/blob/main/ClinicalTrialsGov-data.rds) formats.
-
-Finally, as later we will often use only the blinded, placebo-controlled RCTs, let's collect them into a separate data table:
-
-```{r}
-RawData2 <- RawData[MaskingSimple != "NONE" & Placebo == TRUE]
-```
 
 ## Sample sizes
 
@@ -307,6 +359,20 @@ ggplot(RawData[Enrollment > 0], aes(x = Enrollment)) +
   labs(y = "Count")
 ```
 
+It is especially instructive to have a look at the distribution of sample sizes for different therapeutic areas (plot will only show those areas for which we have at least 100 trials):
+
+```{r}
+ggplot(RawDataMeSH[N > 100 & Enrollment > 0],
+       aes(y = ConditionMeSHHeadNamePrint, x = Enrollment)) +
+  geom_boxplot(outliers = FALSE) +
+  geom_jitter(size = 0.1, alpha = 0.05) +
+  scale_x_log10(breaks = scales::breaks_log(n = 6),
+                labels = scales::label_comma(),
+                guide = "axis_logticks") + 
+  scale_y_discrete(limits = rev) +
+  labs(y = "")
+```
+
 Now we can have a look at the few largest trials:
 
 ```{r}
@@ -320,7 +386,7 @@ knitr::kable(RawData[
 Restring ourselves only to placebo-controlled, blinded RCTs:
 
 ```{r}
-knitr::kable(RawData2[
+knitr::kable(RawData[MaskingSimple != "NONE" & Placebo == TRUE][
   order(Enrollment, decreasing = TRUE),
   .(NCT = paste0("[", NCT, "](https://clinicaltrials.gov/study/", NCT, ")"),
     Phase, Masking = MaskingSimple, Placebo, Age,
@@ -330,7 +396,7 @@ knitr::kable(RawData2[
 And those that involved only children:
 
 ```{r}
-knitr::kable(RawData2[Age == "CHILD"][
+knitr::kable(RawData[MaskingSimple != "NONE" & Placebo == TRUE & Age == "CHILD"][
   order(Enrollment, decreasing = TRUE),
   .(NCT = paste0("[", NCT, "](https://clinicaltrials.gov/study/", NCT, ")"),
     Phase, Masking = MaskingSimple, Placebo, Age,
@@ -374,6 +440,20 @@ knitr::kable(data.table(`Duration of follow-up [day]` =
              digits = c(NA, 2))
 ```
 
+Let's have a look at the distribution of durations for different therapeutic areas (plot will only show those areas for which we have at least 100 trials):
+
+```{r}
+ggplot(RawDataMeSH[N > 100 & !is.na(EstFU) & EstFU > 0.1],
+       aes(y = ConditionMeSHHeadNamePrint, x = EstFU)) +
+  geom_boxplot(outliers = FALSE) +
+  geom_jitter(size = 0.1, alpha = 0.05) +
+  scale_x_log10(breaks = scales::breaks_log(n = 6),
+                labels = scales::label_comma(),
+                guide = "axis_logticks") + 
+  scale_y_discrete(limits = rev) +
+  labs(x = "Estimated duration of follow-up [day]", y = "")
+```
+
 Now we can have a look at the few longest trials:
 
 ```{r}
@@ -387,7 +467,7 @@ knitr::kable(RawData[
 Restring ourselves only to place-controlled, blinded RCTs:
 
 ```{r}
-knitr::kable(RawData2[
+knitr::kable(RawData[MaskingSimple != "NONE" & Placebo == TRUE][
   order(EstFU, decreasing = TRUE),
   .(NCT = paste0("[", NCT, "](https://clinicaltrials.gov/study/", NCT, ")"),
     Phase, Masking = MaskingSimple, Placebo, Age,
@@ -397,7 +477,7 @@ knitr::kable(RawData2[
 And those that involved only children:
 
 ```{r}
-knitr::kable(RawData2[Age == "CHILD"][
+knitr::kable(RawData[MaskingSimple != "NONE" & Placebo == TRUE & Age == "CHILD"][
   order(EstFU, decreasing = TRUE),
   .(NCT = paste0("[", NCT, "](https://clinicaltrials.gov/study/", NCT, ")"),
     Phase, Masking = MaskingSimple, Placebo, Age,
@@ -444,8 +524,8 @@ knitr::kable(
 - Better identification of cluster-randomized trials.
 - Better extraction of the durations from the `outcomeMeasures.timeFrame` fields.
 - More investigations of the possible predictors (such as the placebo-control done above).
-- Extracting therapeutic areas as well.
 - Investigation if we miss anything with excluding trials when the enrollment was only estimated.
 - Differentiating inert and non-inert placebos (sometimes found in [vaccine](https://www.sciencedirect.com/science/article/pii/S0264410X14005374) [trials](https://iris.who.int/bitstream/handle/10665/94056/9789241506250_eng.pdf)). E.g., NCT01014845, NCT01680679.
 - Errors in ClinicalTrials.gov database: NCT04505722 (placebo-controlled), NCT00000479 (placebo listed as "behavioral" intervention), NCT02211729 (placebo-controlled), NCT00281658 (placebo-controlled).
-- Checking start and end dates as possibly proxy for duration.
+- Checking start and end dates as possibly proxy for duration of follow-up.
+- Elegant processing and information look-up from the MeSH XML.
