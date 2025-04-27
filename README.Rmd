@@ -365,7 +365,7 @@ It is especially instructive to have a look at the distribution of sample sizes 
 ggplot(RawDataMeSH[N > 100 & Enrollment > 0],
        aes(y = ConditionMeSHHeadNamePrint, x = Enrollment)) +
   geom_boxplot(outliers = FALSE) +
-  geom_jitter(size = 0.1, alpha = 0.05) +
+  geom_jitter(size = 0.05, alpha = 0.03) +
   scale_x_log10(breaks = scales::breaks_log(n = 6),
                 labels = scales::label_comma(),
                 guide = "axis_logticks") + 
@@ -446,7 +446,7 @@ Let's have a look at the distribution of durations for different therapeutic are
 ggplot(RawDataMeSH[N > 100 & !is.na(EstFU) & EstFU > 0.1],
        aes(y = ConditionMeSHHeadNamePrint, x = EstFU)) +
   geom_boxplot(outliers = FALSE) +
-  geom_jitter(size = 0.1, alpha = 0.05) +
+  geom_jitter(size = 0.05, alpha = 0.03) +
   scale_x_log10(breaks = scales::breaks_log(n = 6),
                 labels = scales::label_comma(),
                 guide = "axis_logticks") + 

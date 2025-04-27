@@ -179,9 +179,9 @@ bench::mark(
     ## # A tibble: 3 × 6
     ##   expression                            min  median `itr/sec` mem_alloc `gc/sec`
     ##   <bch:expr>                        <bch:t> <bch:t>     <dbl> <bch:byt>    <dbl>
-    ## 1 "jsonlite::fromJSON(\"./ctg-stud…  60.4ms 67.68ms      14.4    1.54MB    23.3 
-    ## 2 "rjson::fromJSON(file = \"./ctg-…  6.95ms  7.42ms     122.    321.2KB    12.0 
-    ## 3 "RJSONIO::fromJSON(\"./ctg-studi… 14.49ms 16.37ms      56.3    1.48MB     3.89
+    ## 1 "jsonlite::fromJSON(\"./ctg-stud… 66.39ms 68.19ms      13.6    1.54MB    21.4 
+    ## 2 "rjson::fromJSON(file = \"./ctg-…  7.37ms  8.38ms     111.    321.2KB    11.9 
+    ## 3 "RJSONIO::fromJSON(\"./ctg-studi… 15.22ms 16.12ms      60.4    1.48MB     3.90
 
 Based on these results, we will use the `rjson` package.
 
@@ -649,7 +649,7 @@ areas for which we have at least 100 trials):
 ggplot(RawDataMeSH[N > 100 & Enrollment > 0],
        aes(y = ConditionMeSHHeadNamePrint, x = Enrollment)) +
   geom_boxplot(outliers = FALSE) +
-  geom_jitter(size = 0.1, alpha = 0.05) +
+  geom_jitter(size = 0.05, alpha = 0.03) +
   scale_x_log10(breaks = scales::breaks_log(n = 6),
                 labels = scales::label_comma(),
                 guide = "axis_logticks") + 
@@ -799,7 +799,7 @@ least 100 trials):
 ggplot(RawDataMeSH[N > 100 & !is.na(EstFU) & EstFU > 0.1],
        aes(y = ConditionMeSHHeadNamePrint, x = EstFU)) +
   geom_boxplot(outliers = FALSE) +
-  geom_jitter(size = 0.1, alpha = 0.05) +
+  geom_jitter(size = 0.05, alpha = 0.03) +
   scale_x_log10(breaks = scales::breaks_log(n = 6),
                 labels = scales::label_comma(),
                 guide = "axis_logticks") + 
