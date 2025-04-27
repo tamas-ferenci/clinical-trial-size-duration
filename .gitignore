@@ -49,3 +49,5 @@ po/*~
 rsconnect/
 
 ClinicalTrialsGov-data.csv
+ctg-studies.json.zip
+ctg-studies/
